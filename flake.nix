@@ -25,20 +25,18 @@
           vendorHash = "sha256-ARz+96Uflh1rym7Qpa0BCWd1HIoGKeBwwjHyKWMmjY8=";
 
           nativeBuildInputs = with pkgs; [ pkg-config gcc gnumake ];
-          buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 ];
+          # Added umu-launcher to build dependencies
+          buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 glib umu-launcher ];
 
           doCheck = false;
 
-          # We inject the environment file natively right before the official script runs
           buildPhase = ''
             chmod +x scripts/release-linux.sh
             
-            # Create the release.env file expected by their build system using local coordinates
-            # NOTE: If you have your community's active game server IP, replace "127.0.0.1" with it below.
+            # Inject the release.env file required by their build system
             echo "GATEWAY_HOST=127.0.0.1" > release.env
             echo "GATEWAY_PORT=6000" >> release.env
             
-            # Compile using the official script incorporating the environment variables we just wrote
             PATCH_ONLY=1 scripts/release-linux.sh
           '';
 
@@ -58,6 +56,8 @@
         apps.default = {
           type = "app";
           program = "${pkgs.writeShellScriptBin "azoth-launcher-fhs" ''
+            # We explicitly inject umu-launcher into the execution PATH inside the FHS sandbox
+            export PATH="${pkgs.umu-launcher}/bin:$PATH"
             exec ${pkgs.steam-run}/bin/steam-run ${self.packages.${system}.default}/bin/azoth-launcher "$@"
           ''}/bin/azoth-launcher-fhs";
         };
