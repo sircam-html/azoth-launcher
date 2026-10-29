@@ -30,6 +30,14 @@
 
           doCheck = false;
 
+          # release-linux.sh bakes the sha256 of azoth-patcher.exe into the
+          # launcher. The stdenv strip hook rewrites every file in bin/,
+          # including the Windows PE helper, which changes its bytes and makes
+          # the launcher reject it at runtime ("azoth-patcher.exe does not
+          # match this launcher"). Both Go binaries are already built with
+          # -s -w, so skipping strip costs nothing.
+          dontStrip = true;
+
           buildPhase = ''
             chmod +x scripts/release-linux.sh
             
