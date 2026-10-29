@@ -14,6 +14,16 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
+
+        # Gateway baked into the launcher at build time by release-linux.sh.
+        # Override it for a playtest without editing this file (the runner
+        # needs --impure for getEnv to see the variables):
+        #   AZOTH_GATEWAY_HOST=1.2.3.4 AZOTH_GATEWAY_PORT=6000 nix run ... --impure
+        envOr = name: fallback:
+          let value = builtins.getEnv name;
+          in if value == "" then fallback else value;
+        gatewayHost = envOr "AZOTH_GATEWAY_HOST" "127.0.0.1";
+        gatewayPort = envOr "AZOTH_GATEWAY_PORT" "6000";
       in
       {
         packages.default = pkgs.buildGoModule {
@@ -41,9 +51,11 @@
           buildPhase = ''
             chmod +x scripts/release-linux.sh
             
-            # Inject the release.env file required by their build system
-            echo "GATEWAY_HOST=127.0.0.1" > release.env
-            echo "GATEWAY_PORT=6000" >> release.env
+            # Inject the release.env file required by their build system.
+            # Values come from AZOTH_GATEWAY_HOST / AZOTH_GATEWAY_PORT when set
+            # (see the flake's top-level let), otherwise 127.0.0.1:6000.
+            echo "GATEWAY_HOST=${gatewayHost}" > release.env
+            echo "GATEWAY_PORT=${gatewayPort}" >> release.env
             
             PATCH_ONLY=1 scripts/release-linux.sh
           '';
