@@ -22,7 +22,6 @@
 
           src = azoth-src;
 
-          # Your verified Nix Go modules vendor hash
           vendorHash = "sha256-ARz+96Uflh1rym7Qpa0BCWd1HIoGKeBwwjHyKWMmjY8=";
 
           nativeBuildInputs = with pkgs; [ pkg-config gcc gnumake ];
@@ -30,26 +29,17 @@
 
           doCheck = false;
 
-          # We override the flags during the native Go build step to bake in the server data natively
+          # We inject the environment file natively right before the official script runs
           buildPhase = ''
             chmod +x scripts/release-linux.sh
             
-            # 1. Run the base release preparation script
-            PATCH_ONLY=1 scripts/release-linux.sh --no-server
-            
-            # 2. Re-compile the final main binary manually to override the variables via linker flags
+            # Create the release.env file expected by their build system using local coordinates
             # NOTE: If you have your community's active game server IP, replace "127.0.0.1" with it below.
-            echo "Baking custom server configuration directly into the compiled executable..."
-            go build -tags="production" -ldflags "
-              -X main.gatewayHost=127.0.0.1
-              -X main.gatewayPort=6000
-              -s -w
-            " -o build/bin/AzothLauncher main.go app.go flow.go options_linux.go launch_linux.go
-
-            # 3. Re-pack the tarball with our updated server-enabled binary
-            cd build/bin
-            tar -czf AzothLauncher-linux-x86_64.tar.gz AzothLauncher
-            cd ../..
+            echo "GATEWAY_HOST=127.0.0.1" > release.env
+            echo "GATEWAY_PORT=6000" >> release.env
+            
+            # Compile using the official script incorporating the environment variables we just wrote
+            PATCH_ONLY=1 scripts/release-linux.sh
           '';
 
           installPhase = ''
