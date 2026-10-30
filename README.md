@@ -1,4 +1,4 @@
-# azoth-launcher
+# Nix Flake for Azoth Launcher
 
 Nix flake that packages and runs the [Azoth Launcher](https://github.com/KyzaBOY/azoth-launcher) for New World on NixOS.
 
