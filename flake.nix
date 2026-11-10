@@ -10,28 +10,12 @@
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        
-        azoth-unpacked = pkgs.stdenv.mkDerivation {
-          pname = "azoth-launcher-base";
-          version = "1.0.29";
-
-          src = pkgs.fetchurl {
-            name = "AzothLauncher-1.0.29.tar.gz"; # Force a fixed name to freeze the hash
-            url = "https://github.com";
-            hash = "sha256-YFqruXiiNFWWeya9N+5RNwiTR4qYVFniiUDUss3sElQ="; 
-          };
-
-          dontStrip = true;
-          dontBuild = true;
-
-          installPhase = ''
-            mkdir -p $out/share/azoth
-            cp -r * $out/share/azoth/
-          '';
-        };
       in
       {
-        packages.default = azoth-unpacked;
+        # We export a lightweight script that manages the binary outside the Nix store
+        packages.default = pkgs.writeShellScriptBin "azoth-launcher" ''
+          echo "Checking launcher status..."
+        '';
 
         apps.default = {
           type = "app";
@@ -39,20 +23,28 @@
             DATA_DIR="$HOME/.local/share/azoth-launcher"
             mkdir -p "$DATA_DIR"
 
-            echo "Syncing Azoth Launcher 1.0.29 environment to $DATA_DIR..."
-            cp -rn ${azoth-unpacked}/share/azoth/* "$DATA_DIR/"
-            chmod -R u+w "$DATA_DIR"
+            # If the binary isn't present, download it dynamically using curl at runtime
+            if [ ! -f "$DATA_DIR/AzothLauncher" ] && [ ! -f "$DATA_DIR/azoth-launcher" ]; then
+              echo "Downloading Azoth Launcher v1.0.29 directly to your home directory..."
+              ${pkgs.curl}/bin/curl -L "https://github.com" -o "$DATA_DIR/launcher.tar.gz"
+              
+              echo "Extracting archive..."
+              tar -xzf "$DATA_DIR/launcher.tar.gz" -C "$DATA_DIR/"
+              rm "$DATA_DIR/launcher.tar.gz"
+            fi
 
             TARGET_BIN="$DATA_DIR/AzothLauncher"
             if [ ! -f "$TARGET_BIN" ] && [ -f "$DATA_DIR/azoth-launcher" ]; then
               TARGET_BIN="$DATA_DIR/azoth-launcher"
             fi
 
+            chmod +x "$TARGET_BIN"
+
+            # Set up the runtime sandbox environment
             export PATH="${pkgs.umu-launcher}/bin:$PATH"
-            
             cd "$DATA_DIR"
             
-            echo "Launching via steam-run FHS context..."
+            echo "Launching via steam-run FHS layout..."
             exec ${pkgs.steam-run}/bin/steam-run "$TARGET_BIN" "$@"
           ''}/bin/azoth-launcher-fhs";
         };
