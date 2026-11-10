@@ -4,13 +4,9 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    azoth-src = {
-      url = "github:KyzaBOY/azoth-launcher-releases/v1.0.29";
-      flake = false;
-    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, azoth-src }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
@@ -20,28 +16,37 @@
           pname = "azoth-launcher";
           version = "1.0.29";
 
-          src = azoth-src;
+          # 1. Directly fetch the release asset archive.
+          # Nix requires an explicit hash for fixed-output network fetches.
+          src = pkgs.fetchurl {
+            url = "https://github.com";
+            hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Dummy hash to trigger Nix to give you the real one
+          };
 
-          # Runtime framework dependencies needed by the launcher's UI
           buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 glib umu-launcher ];
 
-          # Precompiled release archives are already optimized and must not be stripped
           dontStrip = true;
-
-          # Removed buildPhase because the binaries are already built by upstream
           dontBuild = true;
+
+          # 2. Since it's a tar.gz, Nix unpacks it automatically into the build directory.
+          # We just need to check what files came out of it and move them to $out/bin.
+          unpackPhase = ''
+            runHook preUnpack
+            mkdir source
+            tar -xzf $src -C source/
+            cd source
+            runHook postUnpack
+          '';
 
           installPhase = ''
             runHook preInstall
 
             mkdir -p $out/bin
-            mkdir temp_extract
             
-            # Find the Linux tarball inside the release repository bundle and unpack it
-            tar -xzf build/bin/AzothLauncher-linux-x86_64.tar.gz -C temp_extract/
-            cp -r temp_extract/*/* $out/bin/ 2>/dev/null || cp -r temp_extract/* $out/bin/
+            # Copy everything extracted to our output bin directory
+            cp -r * $out/bin/ 2>/dev/null || cp * $out/bin/
             
-            # Rename the binary matching the rest of your app wrapper environment
+            # Normalize the binary name if needed
             if [ -f $out/bin/AzothLauncher ]; then
               mv $out/bin/AzothLauncher $out/bin/azoth-launcher
             fi
