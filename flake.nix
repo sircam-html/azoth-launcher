@@ -1,5 +1,5 @@
 {
-  description = "Azoth Launcher 1.0.29 (Windows build) running under Wine on NixOS";
+  description = "Azoth Launcher 1.0.30 (Windows build) running under Wine on NixOS";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
