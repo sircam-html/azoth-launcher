@@ -22,21 +22,15 @@
             DATA_DIR="$HOME/.local/share/azoth-launcher"
             mkdir -p "$DATA_DIR"
 
-            if [ ! -f "$DATA_DIR/AzothLauncher" ] && [ ! -f "$DATA_DIR/azoth-launcher" ]; then
-              echo "Downloading Azoth Launcher v1.0.29 directly to your home directory..."
-              ${pkgs.curl}/bin/curl -L "https://github.com" -o "$DATA_DIR/launcher.tar.gz"
-              
-              echo "Extracting archive..."
-              # FIXED: Replaced -xzf with -xf to handle plain tar contents natively without error
-              tar -xf "$DATA_DIR/launcher.tar.gz" -C "$DATA_DIR/"
-              rm "$DATA_DIR/launcher.tar.gz"
+            TARGET_BIN="$DATA_DIR/azoth-launcher"
+
+            # Download the binary directly if it doesn't exist
+            if [ ! -f "$TARGET_BIN" ]; then
+              echo "Downloading Azoth Launcher v1.0.29 executable directly to your home directory..."
+              ${pkgs.curl}/bin/curl -L "https://github.com" -o "$TARGET_BIN"
             fi
 
-            TARGET_BIN="$DATA_DIR/AzothLauncher"
-            if [ ! -f "$TARGET_BIN" ] && [ -f "$DATA_DIR/azoth-launcher" ]; then
-              TARGET_BIN="$DATA_DIR/azoth-launcher"
-            fi
-
+            # Ensure it has execution permissions
             chmod +x "$TARGET_BIN"
 
             export PATH="${pkgs.umu-launcher}/bin:$PATH"
