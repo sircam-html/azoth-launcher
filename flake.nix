@@ -11,7 +11,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        version = "1.0.29";
+        version = "1.0.30";
 
         # The 1.0.x line ships only a Windows installer (Electron app).
         # Swap the url for your own upload if you mirror the exe on GitHub,
