@@ -16,11 +16,9 @@
           pname = "azoth-launcher";
           version = "1.0.29";
 
-          # 1. Directly fetch the release asset archive.
-          # Nix requires an explicit hash for fixed-output network fetches.
           src = pkgs.fetchurl {
             url = "https://github.com";
-            hash = "sha256-sfCzYTBJ+yyz9eomOrnDabcyH/WMPIFIb/cB1TxK+Gw="; # Dummy hash to trigger Nix to give you the real one
+            hash = "sha256-sfCzYTBJ+yyz9eomOrnDabcyH/WMPIFIb/cB1TxK+Gw=";
           };
 
           buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 glib umu-launcher ];
@@ -28,28 +26,22 @@
           dontStrip = true;
           dontBuild = true;
 
-          # 2. Since it's a tar.gz, Nix unpacks it automatically into the build directory.
-          # We just need to check what files came out of it and move them to $out/bin.
-          unpackPhase = ''
-            runHook preUnpack
-            mkdir source
-            tar -xzf $src -C source/
-            cd source
-            runHook postUnpack
-          '';
+          # Removed the broken unpackPhase. Nix automatically untars the src into the build folder.
 
           installPhase = ''
             runHook preInstall
 
             mkdir -p $out/bin
             
-            # Copy everything extracted to our output bin directory
+            # The tar.gz typically expands directly into a folder or individual binaries.
+            # We copy all extracted files into the target folder.
             cp -r * $out/bin/ 2>/dev/null || cp * $out/bin/
             
-            # Normalize the binary name if needed
+            # Normalize the binary name if it exists inside the release
             if [ -f $out/bin/AzothLauncher ]; then
               mv $out/bin/AzothLauncher $out/bin/azoth-launcher
             fi
+            
             chmod +x $out/bin/azoth-launcher
 
             runHook postInstall
