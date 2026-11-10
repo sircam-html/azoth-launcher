@@ -16,8 +16,9 @@
           version = "1.0.29";
 
           src = pkgs.fetchurl {
+            name = "AzothLauncher-1.0.29.tar.gz"; # Force a fixed name to freeze the hash
             url = "https://github.com";
-            hash = "sha256-imZGNwql3xxqoJ1GIID1p3VAxlMDkKiFE3gAxxz1rVc="; # Fixed to the latest requested hash
+            hash = "sha256-YFqruXiiNFWWeya9N+5RNwiTR4qYVFniiUDUss3sElQ="; 
           };
 
           dontStrip = true;
