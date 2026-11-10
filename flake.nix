@@ -1,86 +1,85 @@
 {
-  description = "Nix Flake to package and run Azoth Launcher on NixOS";
+  description = "Azoth Launcher 1.0.29 (Windows build) running under Wine on NixOS";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
-    azoth-src = {
-      url = "github:KyzaBOY/azoth-launcher";
-      flake = false;
-    };
   };
 
-  outputs = { self, nixpkgs, flake-utils, azoth-src }:
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        # Gateway baked into the launcher at build time by release-linux.sh.
-        # Override it for a playtest without editing this file (the runner
-        # needs --impure for getEnv to see the variables):
-        #   AZOTH_GATEWAY_HOST=1.2.3.4 AZOTH_GATEWAY_PORT=6000 nix run ... --impure
-        envOr = name: fallback:
-          let value = builtins.getEnv name;
-          in if value == "" then fallback else value;
-        gatewayHost = envOr "AZOTH_GATEWAY_HOST" "127.0.0.1";
-        gatewayPort = envOr "AZOTH_GATEWAY_PORT" "6000";
-      in
-      {
-        packages.default = pkgs.buildGoModule {
+        version = "1.0.29";
+
+        # The 1.0.x line ships only a Windows installer (Electron app).
+        # Swap the url for your own upload if you mirror the exe on GitHub,
+        # and update the hash with: nix hash convert --to sri sha256 <file>
+        src = pkgs.fetchurl {
+          url = "https://github.com/KyzaBOY/azoth-launcher-releases/releases/download/v${version}/AzothLauncherSetup-${version}.exe";
+          hash = "sha256-qsE6e5hsPS96Z4rbm5pSbsDSjeZAQ2oeypDrqo6gOcs=";
+        };
+
+        # An NSIS installer is not a runnable app: unpack the payload it
+        # carries ($PLUGINSDIR/app-64.7z) instead of installing it.
+        azoth = pkgs.stdenvNoCC.mkDerivation {
           pname = "azoth-launcher";
-          version = "unstable";
+          inherit version src;
 
-          src = azoth-src;
+          nativeBuildInputs = [ pkgs.p7zip ];
 
-          vendorHash = "sha256-ARz+96Uflh1rym7Qpa0BCWd1HIoGKeBwwjHyKWMmjY8=";
-
-          nativeBuildInputs = with pkgs; [ pkg-config gcc gnumake ];
-          # Added umu-launcher to build dependencies
-          buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 glib umu-launcher ];
-
-          doCheck = false;
-
-          # release-linux.sh bakes the sha256 of azoth-patcher.exe into the
-          # launcher. The stdenv strip hook rewrites every file in bin/,
-          # including the Windows PE helper, which changes its bytes and makes
-          # the launcher reject it at runtime ("azoth-patcher.exe does not
-          # match this launcher"). Both Go binaries are already built with
-          # -s -w, so skipping strip costs nothing.
-          dontStrip = true;
-
-          buildPhase = ''
-            chmod +x scripts/release-linux.sh
-
-            # Inject the release.env file required by their build system.
-            # Values come from AZOTH_GATEWAY_HOST / AZOTH_GATEWAY_PORT when set
-            # (see the flake's top-level let), otherwise 127.0.0.1:6000.
-            echo "GATEWAY_HOST=${gatewayHost}" > release.env
-            echo "GATEWAY_PORT=${gatewayPort}" >> release.env
-
-            PATCH_ONLY=1 scripts/release-linux.sh
-          '';
+          dontUnpack = true;
 
           installPhase = ''
-            mkdir -p $out/bin
-            mkdir temp_extract
-            tar -xzf build/bin/AzothLauncher-linux-x86_64.tar.gz -C temp_extract/
-            cp -r temp_extract/*/* $out/bin/ 2>/dev/null || cp -r temp_extract/* $out/bin/
+            runHook preInstall
+            mkdir -p "$out/share/azoth"
+            tmp=$(mktemp -d)
+            7z x -y -o"$tmp" "$src" >/dev/null
+            payload=$(find "$tmp" -name 'app-64.7z' -print -quit)
+            [ -n "$payload" ] || { echo "app-64.7z not found inside the installer"; exit 1; }
+            7z x -y -o"$out/share/azoth" "$payload" >/dev/null
+            chmod -R u+w "$out/share/azoth"
+            runHook postInstall
+          '';
 
-            if [ -f $out/bin/AzothLauncher ]; then
-              mv $out/bin/AzothLauncher $out/bin/azoth-launcher
+          meta = with pkgs.lib; {
+            description = "Azoth Launcher (Windows build, runs under Wine)";
+            platforms = [ "x86_64-linux" ];
+          };
+        };
+
+        # Wine needs a writable prefix, so the app is copied there on first
+        # run (also lets the launcher's own updater write to its folder).
+        runner = pkgs.writeShellApplication {
+          name = "azoth-launcher";
+          runtimeInputs = [ pkgs.wineWow64Packages.stable pkgs.coreutils ];
+
+          text = ''
+            export WINEPREFIX="''${WINEPREFIX:-''${XDG_DATA_HOME:-$HOME/.local/share}/azoth-launcher-wine}"
+            export WINEDEBUG="''${WINEDEBUG:--all}"
+            export WINEDLLOVERRIDES="mscoree,mshtml="
+
+            appdir="$WINEPREFIX/drive_c/AzothLauncher"
+            if [ "$(cat "$appdir/.version" 2>/dev/null || true)" != "${version}" ]; then
+              [ -d "$appdir" ] && chmod -R u+w "$appdir" || true
+              rm -rf "$appdir"
+              mkdir -p "$appdir"
+              cp -a "${azoth}/share/azoth/." "$appdir/"
+              chmod -R u+w "$appdir"
+              printf '%s\n' "${version}" > "$appdir/.version"
             fi
-            chmod +x $out/bin/azoth-launcher
+
+            exec wine "$appdir/Azoth Launcher.exe" --no-sandbox --disable-gpu "$@"
           '';
         };
+      in
+      {
+        packages.default = azoth;
 
         apps.default = {
           type = "app";
-          program = "${pkgs.writeShellScriptBin "azoth-launcher-fhs" ''
-            # We explicitly inject umu-launcher into the execution PATH inside the FHS sandbox
-            export PATH="${pkgs.umu-launcher}/bin:$PATH"
-            exec ${pkgs.steam-run}/bin/steam-run ${self.packages.${system}.default}/bin/azoth-launcher "$@"
-          ''}/bin/azoth-launcher-fhs";
+          program = "${runner}/bin/azoth-launcher";
         };
-      }
-    );
+      });
 }
