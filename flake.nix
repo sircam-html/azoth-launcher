@@ -22,22 +22,22 @@
             DATA_DIR="$HOME/.local/share/azoth-launcher"
             mkdir -p "$DATA_DIR"
 
-            TARGET_BIN="$DATA_DIR/azoth-launcher"
+            INSTALLER_SCRIPT="$DATA_DIR/azoth-installer.sh"
 
-            # Download the binary directly if it doesn't exist
-            if [ ! -f "$TARGET_BIN" ]; then
-              echo "Downloading Azoth Launcher v1.0.29 executable directly to your home directory..."
-              ${pkgs.curl}/bin/curl -L "https://github.com" -o "$TARGET_BIN"
+            # Download the installer script directly if it isn't there
+            if [ ! -f "$INSTALLER_SCRIPT" ]; then
+              echo "Downloading Azoth Launcher v1.0.29 installation script..."
+              ${pkgs.curl}/bin/curl -L "https://github.com" -o "$INSTALLER_SCRIPT"
             fi
 
-            # Ensure it has execution permissions
-            chmod +x "$TARGET_BIN"
+            chmod +x "$INSTALLER_SCRIPT"
 
             export PATH="${pkgs.umu-launcher}/bin:$PATH"
             cd "$DATA_DIR"
             
-            echo "Launching via steam-run FHS layout..."
-            exec ${pkgs.steam-run}/bin/steam-run "$TARGET_BIN" "$@"
+            echo "Executing installer within steam-run FHS sandbox..."
+            # We run it with 'sh' explicitly so Linux treats it as a script
+            exec ${pkgs.steam-run}/bin/steam-run sh "$INSTALLER_SCRIPT" "$@"
           ''}/bin/azoth-launcher-fhs";
         };
       }
