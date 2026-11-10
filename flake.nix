@@ -20,7 +20,7 @@
           # Nix requires an explicit hash for fixed-output network fetches.
           src = pkgs.fetchurl {
             url = "https://github.com";
-            hash = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="; # Dummy hash to trigger Nix to give you the real one
+            hash = "sha256-sfCzYTBJ+yyz9eomOrnDabcyH/WMPIFIb/cB1TxK+Gw="; # Dummy hash to trigger Nix to give you the real one
           };
 
           buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 glib umu-launcher ];
