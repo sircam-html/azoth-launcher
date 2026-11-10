@@ -1,42 +1,65 @@
 # Nix Flake for Azoth Launcher
 
-Nix flake that packages and runs the [Azoth Launcher](https://github.com/KyzaBOY/azoth-launcher) for New World on NixOS.
+Nix flake that runs the official [Azoth Launcher](https://github.com/KyzaBOY/azoth-launcher-releases) for New World on NixOS.
+
+The launcher is a Windows program, so this flake downloads the official installer, unpacks the app it carries, and runs it under Wine. Nothing is installed into your system: `nix run` fetches everything it needs, including its own Wine.
 
 ## Run it
 
 ```bash
-NIXPKGS_ALLOW_UNFREE=1 nix run github:sircam-html/azoth-launcher --impure
+nix run github:sircam-html/azoth-launcher
 ```
 
-The same command works in `fish` and `bash`. No cloning required: Nix fetches the flake, builds the launcher, and runs it.
+The same command works in `fish` and `bash`. No cloning required.
 
 ### Requirements
 
-- `x86_64-linux` (the flake only defines that system).
+- `x86_64-linux`.
 - Flakes enabled.
-- About 2 GB of free disk space (build dependencies, umu runtime and Proton prefix).
+- A few GB of free disk space (Wine and its libraries, plus the launcher itself).
 - An internet connection on the first run.
 - A New World install; the launcher looks for `NewWorld.exe` inside `Bin64`.
 
 ### First run
 
-The first run builds the Wails launcher, so it takes a few minutes. Once the window opens, choose your New World folder in Settings, log in with Discord, and press Play.
+Nix downloads Wine and the launcher, then the window opens. Choose your New World folder in Settings, log in with Discord, and press Play.
 
-The first Play shows `Setting up Proton (first time only)…` while umu-launcher creates the Wine prefix and downloads the Proton runtime. This is expected and can take a few minutes; later runs start much faster.
+The first run also creates a Wine prefix in `~/.local/share/azoth-launcher-wine`, and the launcher copies itself there so its own updater can write to its folder. Your settings and Discord session live in that folder. To start from scratch, delete it.
+
+Note that the game starts **inside that same Wine prefix**, not through umu/Proton as the old native build did. The first Play may take a while while the prefix is set up.
+
+### Updating the launcher
+
+Upstream publishes new versions as Windows installers. To bump:
+
+1. Change `version = "1.0.29";` in `flake.nix` to the new version.
+2. Change the `hash` for the new installer. If you leave the old one, the build fails and prints the correct hash; or compute it yourself:
+
+   ```bash
+   nix hash convert --to sri sha256 AzothLauncherSetup-<version>.exe
+   ```
+
+Everything else stays the same. The URL follows the version.
 
 ## Package
 
-The launcher is available as the default package:
+The default package is the unpacked Windows app, not a native binary:
 
 ```bash
 nix build github:sircam-html/azoth-launcher
-./result/bin/azoth-launcher
+ls result/share/azoth
 ```
 
-The output contains `azoth-launcher`, `azoth-patcher.exe`, the `.desktop` file and the icon.
+To run it, use `nix run` (it sets up Wine and the prefix for you):
+
+```bash
+nix run github:sircam-html/azoth-launcher
+```
 
 ## Notes
 
-- The game server (gateway) is baked into the launcher at build time by upstream's `scripts/release-linux.sh`, so it cannot be changed from the launcher's settings. The current build points at `127.0.0.1:6000`; edit `GATEWAY_HOST` / `GATEWAY_PORT` in `flake.nix` to target another server.
-- `dontStrip = true` is intentional: Nix's strip hook rewrites `azoth-patcher.exe`, which would no longer match the sha256 baked into the launcher and Play would refuse to start the game.
-- The launcher runs inside an FHS environment (`steam-run`) with `umu-launcher` on `PATH`, because it needs both WebKitGTK and Wine/Proton at runtime.
+- The 1.0.x line is a Windows-only Electron app: upstream ships no Linux build and no updated Linux source. This flake runs the official Windows build instead of compiling from source.
+- The flake brings its own `wineWow64Packages.stable`. A 32-bit Wine cannot start the 64-bit launcher (`Bad EXE format`), so don't rely on a Wine from your profile.
+- The installer is never executed: the flake extracts the `app-64.7z` payload from the NSIS installer at build time. If upstream ever changes the installer format, that step is the one to adjust.
+- The launcher's server (gateway) is baked in by upstream, so this flake does not control it. The flake is meant for the project's live playtests.
+- The launcher runs with `--no-sandbox --disable-gpu` under Wine. They are harmless for a launcher window and avoid Chromium/Wine graphics issues.
