@@ -12,7 +12,6 @@
         pkgs = nixpkgs.legacyPackages.${system};
       in
       {
-        # We export a lightweight script that manages the binary outside the Nix store
         packages.default = pkgs.writeShellScriptBin "azoth-launcher" ''
           echo "Checking launcher status..."
         '';
@@ -23,13 +22,13 @@
             DATA_DIR="$HOME/.local/share/azoth-launcher"
             mkdir -p "$DATA_DIR"
 
-            # If the binary isn't present, download it dynamically using curl at runtime
             if [ ! -f "$DATA_DIR/AzothLauncher" ] && [ ! -f "$DATA_DIR/azoth-launcher" ]; then
               echo "Downloading Azoth Launcher v1.0.29 directly to your home directory..."
               ${pkgs.curl}/bin/curl -L "https://github.com" -o "$DATA_DIR/launcher.tar.gz"
               
               echo "Extracting archive..."
-              tar -xzf "$DATA_DIR/launcher.tar.gz" -C "$DATA_DIR/"
+              # FIXED: Replaced -xzf with -xf to handle plain tar contents natively without error
+              tar -xf "$DATA_DIR/launcher.tar.gz" -C "$DATA_DIR/"
               rm "$DATA_DIR/launcher.tar.gz"
             fi
 
@@ -40,7 +39,6 @@
 
             chmod +x "$TARGET_BIN"
 
-            # Set up the runtime sandbox environment
             export PATH="${pkgs.umu-launcher}/bin:$PATH"
             cd "$DATA_DIR"
             
