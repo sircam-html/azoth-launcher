@@ -4,8 +4,9 @@
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
     flake-utils.url = "github:numtide/flake-utils";
+    # 1. Pointed to the releases repository and explicitly locked to v1.0.29
     azoth-src = {
-      url = "github:KyzaBOY/azoth-launcher";
+      url = "github:KyzaBOY/azoth-launcher-releases/v1.0.29";
       flake = false;
     };
   };
@@ -28,32 +29,25 @@
       {
         packages.default = pkgs.buildGoModule {
           pname = "azoth-launcher";
-          version = "unstable";
+          version = "1.0.29"; # 2. Updated version string
 
           src = azoth-src;
 
-          vendorHash = "sha256-ARz+96Uflh1rym7Qpa0BCWd1HIoGKeBwwjHyKWMmjY8=";
+          # 3. Reset vendorHash so Nix automatically fetches the new module dependencies
+          vendorHash = pkgs.lib.fakeHash; 
 
           nativeBuildInputs = with pkgs; [ pkg-config gcc gnumake ];
-          # Added umu-launcher to build dependencies
           buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 glib umu-launcher ];
 
           doCheck = false;
 
-          # release-linux.sh bakes the sha256 of azoth-patcher.exe into the
-          # launcher. The stdenv strip hook rewrites every file in bin/,
-          # including the Windows PE helper, which changes its bytes and makes
-          # the launcher reject it at runtime ("azoth-patcher.exe does not
-          # match this launcher"). Both Go binaries are already built with
-          # -s -w, so skipping strip costs nothing.
+          # Skipping strip since binaries are built with -s -w
           dontStrip = true;
 
           buildPhase = ''
             chmod +x scripts/release-linux.sh
             
             # Inject the release.env file required by their build system.
-            # Values come from AZOTH_GATEWAY_HOST / AZOTH_GATEWAY_PORT when set
-            # (see the flake's top-level let), otherwise 127.0.0.1:6000.
             echo "GATEWAY_HOST=${gatewayHost}" > release.env
             echo "GATEWAY_PORT=${gatewayPort}" >> release.env
             
@@ -76,7 +70,6 @@
         apps.default = {
           type = "app";
           program = "${pkgs.writeShellScriptBin "azoth-launcher-fhs" ''
-            # We explicitly inject umu-launcher into the execution PATH inside the FHS sandbox
             export PATH="${pkgs.umu-launcher}/bin:$PATH"
             exec ${pkgs.steam-run}/bin/steam-run ${self.packages.${system}.default}/bin/azoth-launcher "$@"
           ''}/bin/azoth-launcher-fhs";
