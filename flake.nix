@@ -17,7 +17,7 @@
 
           src = pkgs.fetchurl {
             url = "https://github.com";
-            hash = "sha256-asm8c3wTY7wqQvN7v/UUy+U1AQSeJI81ejdxv5RwL08="; # Swapped with the correct hash
+            hash = "sha256-imZGNwql3xxqoJ1GIID1p3VAxlMDkKiFE3gAxxz1rVc="; # Fixed to the latest requested hash
           };
 
           dontStrip = true;
