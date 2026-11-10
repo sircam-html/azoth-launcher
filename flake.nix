@@ -18,7 +18,7 @@
 
           src = pkgs.fetchurl {
             url = "https://github.com";
-            hash = "sha256-RAZUx29dMDAfHnLHpz/+MoKZ4KCKvcQ8RaoNgdK2fj8="; # Updated to the correct hash
+            hash = "sha256-hzk/sRRsECdWLA69hDhFx8X5O9JYZVR80XXMVTV4cag="; # Updated to the correct hash
           };
 
           buildInputs = with pkgs; [ webkitgtk_4_1 gtk3 glib umu-launcher ];
