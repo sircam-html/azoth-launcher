@@ -1,5 +1,5 @@
 {
-  description = "Azoth Launcher 1.0.37 (Windows build) running under Wine on NixOS";
+  description = "Azoth Launcher 1.0.38 (Windows build) running under Wine on NixOS";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
@@ -11,7 +11,7 @@
       let
         pkgs = nixpkgs.legacyPackages.${system};
 
-        version = "1.0.37";
+        version = "1.0.38";
 
         # The 1.0.x line ships only a Windows installer (Electron app).
         # Swap the url for your own upload if you mirror the exe on GitHub,
