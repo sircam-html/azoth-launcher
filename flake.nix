@@ -18,7 +18,7 @@
         # and update the hash with: nix hash convert --to sri sha256 <file>
         src = pkgs.fetchurl {
           url = "https://github.com/KyzaBOY/azoth-launcher-releases/releases/download/v${version}/AzothLauncherSetup-${version}.exe";
-          hash = "sha256-M3p7L1A/p59Tv52Es2MXY4FyDXBHthr9HgZ/WA2Z2nk=";
+          hash = "sha256-GMUpOMG5aMyVva1rxUA9mMuDZdQnTYTixPownsQ7nII=";
         };
 
         # An NSIS installer is not a runnable app: unpack the payload it
